@@ -1,0 +1,287 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User management with WorkOS integration
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  workosId  String?  @unique // WorkOS user ID
+  
+  // Subscription info
+  plan      Plan     @default(STARTER)
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  
+  // Usage tracking
+  monthlyEvents Int @default(0)
+  totalEvents   Int @default(0)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  events        Event[]
+  attendees     Attendee[]
+  apiKeys       ApiKey[]
+  
+  @@map("users")
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  title       String
+  description String?     @db.Text
+  
+  // Event details
+  type        EventType   @default(CONFERENCE)
+  status      EventStatus @default(DRAFT)
+  
+  // Date and time
+  startDate   DateTime
+  endDate     DateTime?
+  timezone    String      @default("UTC")
+  
+  // Location
+  location    String?
+  isVirtual   Boolean     @default(false)
+  venue       String?
+  address     String?
+  
+  // Capacity and registration
+  capacity    Int?
+  registrationRequired Boolean @default(true)
+  registrationFee      Float?  @default(0)
+  registrationDeadline DateTime?
+  
+  // Settings
+  isPublic    Boolean     @default(true)
+  allowWaitlist Boolean   @default(true)
+  enableAnalytics Boolean @default(true)
+  
+  // Media
+  bannerUrl   String?
+  logoUrl     String?
+  
+  // AI generated content
+  aiGenerated Boolean     @default(false)
+  aiPrompt    String?     @db.Text
+  
+  // Timestamps
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendees   Attendee[]
+  agenda      AgendaItem[]
+  tags        EventTag[]
+  analytics   EventAnalytics[]
+  
+  @@map("events")
+}
+
+model Attendee {
+  id          String           @id @default(cuid())
+  email       String
+  firstName   String
+  lastName    String
+  phone       String?
+  company     String?
+  jobTitle    String?
+  
+  // Registration info
+  status      AttendeeStatus   @default(REGISTERED)
+  registeredAt DateTime        @default(now())
+  checkedInAt DateTime?
+  
+  // Payment info
+  paymentStatus PaymentStatus  @default(PENDING)
+  paymentAmount Float?
+  
+  // Custom fields (JSON)
+  customFields Json?
+  
+  // Timestamps
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relations
+  eventId     String
+  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@unique([eventId, email])
+  @@map("attendees")
+}
+
+model AgendaItem {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   @db.Text
+  
+  // Timing
+  startTime   DateTime
+  endTime     DateTime
+  duration    Int       // in minutes
+  
+  // Details
+  speaker     String?
+  location    String?   // Room/venue within event
+  type        String?   // keynote, workshop, break, etc.
+  
+  // Settings
+  isBreak     Boolean   @default(false)
+  isRequired  Boolean   @default(false)
+  capacity    Int?
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@map("agenda_items")
+}
+
+model EventTag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?  // Hex color code
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, name])
+  @@map("event_tags")
+}
+
+model EventAnalytics {
+  id            String   @id @default(cuid())
+  
+  // Metrics
+  pageViews     Int      @default(0)
+  registrations Int      @default(0)
+  checkIns      Int      @default(0)
+  noShows       Int      @default(0)
+  
+  // Engagement
+  avgEngagement Float?   // 0-100 percentage
+  feedbackScore Float?   // 1-5 rating
+  
+  // Date for daily tracking
+  date          DateTime @default(now())
+  
+  // Relations
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, date])
+  @@map("event_analytics")
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  name      String
+  key       String   @unique
+  lastUsed  DateTime?
+  isActive  Boolean  @default(true)
+  
+  // Usage tracking
+  requestCount Int @default(0)
+  
+  // Permissions
+  permissions Json? // Array of allowed operations
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("api_keys")
+}
+
+// TODO: Add WorkOS organization models when implementing team features
+model Organization {
+  id       String @id @default(cuid())
+  name     String
+  workosId String @unique // WorkOS organization ID
+  
+  // Settings
+  plan     Plan   @default(STARTER)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("organizations")
+}
+
+// Enums
+enum Plan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum EventType {
+  CONFERENCE
+  WORKSHOP
+  WEBINAR
+  NETWORKING
+  SEMINAR
+  MEETUP
+  TRAINING
+  EXHIBITION
+  FESTIVAL
+  OTHER
+}
+
+enum EventStatus {
+  DRAFT
+  PLANNING
+  PUBLISHED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendeeStatus {
+  REGISTERED
+  CONFIRMED
+  CHECKED_IN
+  NO_SHOW
+  CANCELLED
+  WAITLISTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  WAIVED
+}
