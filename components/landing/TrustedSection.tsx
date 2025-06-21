@@ -1,7 +1,6 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
 import type { JSX } from "react"
 
 const testimonials = [
@@ -179,22 +178,7 @@ export default function TrustedSection() {
           viewport={{ once: true }}
           className="bg-white rounded-2xl border border-gray-200 p-8 mb-16"
         >
-          <div className="grid lg:grid-cols-3 gap-8 items-center">
-            <div className="lg:col-span-2">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Subscribe to EventFlow</h3>
-              <p className="text-gray-600">
-                Get the latest updates on new features, best practices, and event management insights.
-              </p>
-            </div>
-            <div className="flex space-x-4">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Button className="pinecone-button-primary">Subscribe</Button>
-            </div>
-          </div>
+        
         </motion.div>
 
         {/* Testimonials */}
